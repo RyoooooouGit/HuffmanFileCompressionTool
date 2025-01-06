@@ -1,0 +1,139 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{ctex}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{graphbox}
+\usepackage{float}
+\usepackage[bookmarksopen=true]{hyperref}
+\usepackage{bookmark}
+\usepackage{amsmath}
+\usepackage{txfonts}
+\usepackage{amssymb}
+\graphicspath{{graph/}}
+%\setmainfont{DengXian}
+\renewcommand{\baselinestretch}{1.5}
+\begin{document}
+\pagestyle{empty}
+\begin{titlepage}
+    \vspace*{\fill}
+    \begin{center}
+        \Huge{PJ 开发文档}\\[0.5cm]
+        \Large{22302010011 黄宸一}\\[0.4cm]
+        \today
+    \end{center}
+    \vspace*{\fill}
+\end{titlepage}
+\section{代码结构概要}
+\subsection*{类设置}
+\par{我设置了FileNode、HuffmanNode、HuffmanTree、Operation四个类。}
+\par{其中：FileNode类用来存储文件夹的结构与所带信息(如文件的Huffman树)；HuffmanNode与HuffmanTree类用来构建与存储对于单一文件的Huffman树结构；抽象类Operation用来处理程序运行当中的一些命令(压缩、解压等)，检测命令格式。}
+\par{Operation下有子类OperationQuit(处理退出)与OperationFile(处理文件相关命令，文件覆盖等)，OperationFile下再细分子类OperationZip、OperationUnzip、OperationShow。}
+\subsection*{结构设置/正常运行过程}
+\par{在程序开始时，反复读取用户输入的一行命令到String数组inputs中，根据inputs[0]即命令名，新建相对应的Operation子类op，调用op.run()进入命令执行部分。}
+\par{在每一个Operation中，有共通的checkVariableNum()函数用来检查命令中参数数量是否正确，且有抽象方法checkCommand()与run()需要被重写对于每个不同的命令不同的格式检查与运行。}
+\par{OperationQuit在当用户输入“quit”或“q”时被调用，在run()中检测参数数量，返回true到Boolean变量ifQuit中，退出while循环，退出程序(其他命令类运行时都返回false)。}
+\par{其他情况均为对于文件进行处理的OperationFile类，其中有共通的检查格式函数checkCommand()与检查是否需要进行文件覆盖的函数checkCover()，且有抽象方法printInformation()需要被重写对于不同命令不同的操作信息输出。}
+\par{OperationZip在当用户输入命令名为“zip”或“z”时被调用，在run()中将被压缩文件sourceFile与压缩目标文件destFile赋为命令中的第二个与第一个参数，调用上述函数方法检查格式正误，处理覆盖之后对于FileNode类根文件节点变量，生成文件夹树，生成每个文件的Huffman树，将此根节点写入目标文件后调用FileNode类中真正的压缩函数，最后输出压缩用时、压缩率等，完成压缩。}
+\par{OperationUnzip在当用户输入命令名为“unzip”或“u”时被调用，在run()中将被解压文件sourceFile赋为命令中的参数，调用上述函数方法检查格式正误后从sourceFile中读取出destFile，处理覆盖之后调用FileNode类中真正的解压函数，最后输出解压用时等，完成解压。}
+\par{OperationShow在当用户输入命令名为“show”或“s”时被调用，在run()中将被检查文件sourceFile赋为命令中的参数，调用上述函数方法检查格式正误后从sourceFile中读取出rootFileNode，调用FileNode类中的showFiles函数输出文件夹结构即可。}
+\par{以上为代码大致结构的说明，更多细节实现在下面“各需求实现思路”模块进一步说明。}
+%checkCommand()函数判断命令第一个参数是否以“.huffman”结尾以及命令中的“被操作文件sourceFile”是否能够找到即可；checkCover()函数判断“所需生成文件destFile”是否已经存在，若已存在则询问用户且用户选择不覆盖则输出提示，跳出函数，若用户选择覆盖或者destFile不存在则调用真正的操作函数realOperation()进行处理。
+\section{各需求实现思路}
+\subsection*{核心需求}
+\subsubsection*{文件与文件夹的压缩与解压}
+\par{整体压缩解压指令的接收输出等上面已做过说明，此处着重简述FileNode.zipFile()与FileNode.unzipFile()内部及相关方法的实现。}
+\par{压缩：}
+\par{首先读取到被压缩文件，将其储存在FileNode类变量rootFileNode中作为根节点。调用generateFileTree()，通过java中的File类方法遍历所有的文件或文件夹进行处理，若处理到file为文件夹，则将其子文件或文件夹对应节点存在ArrayList<FileNode> sonNodeList中，若file为文件，则将该文件的大小(长度)存储在fileLength中，这样生成文件节点的树。}
+\par{接着调用generateHuffmanTree()，对于每个file为文件的节点，遍历该文件生成该文件对应的Huffman树(空文件也有Huffman树，不过根节点为空)。Huffman树的生成方法与中期不变， 文件中所有出现过的字符都有其对应的节点HuffmanNode，随机选择文件1000个位置来更新权重，大致代表各字符的出现频率，最后根据生成规则进行树的建构即可。}
+\par{其中特别注意，这样生成的文件节点树中的每一个节点，可能是文件也可能是文件夹，通过FileNode类可以统一实现就不用麻烦地分类写代码。关于文件夹与文件的区分以及是否为空文件夹空文件：判断file是否为文件夹与fileNode的Huffman树是否为空等价，而不是和fileNode的子节点列是否为空等价；判断file是否为空文件与file的HuffmanTree的根节点是否为空等价，如下表：}
+\begin{table}[h!]
+    \begin{center}
+        \begin{tabular}{|c|c|c|c|c|}
+            \hline
+                                          & 文件夹 & 空文件夹 & 文件  & 空文件 \\
+            \hline
+            sonNodeList == null           & false  & false    & false & false  \\
+            sonNodeList.isEmpty()         & false  & true     & true  & true   \\
+            huffmanTree == null           & true   & true     & false & false  \\
+            huffmanTree.getRoot() == null & -      & -        & false & true   \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+\par{正式开始向压缩文件中写入数据。首先将根文件节点rootFileNode通过ObjectOutputStream写入文件，这样存储下整个文件的结构与大小，之后对Huffman树中的每个叶节点生成对应的Huffman编码存在HashMap类变量nodeList中，这样就可以直接在该list中寻找而不用每次都遍历整棵树，提高效率。}
+\par{最后以根后序的顺序依次写入各文件压缩后的数据。对于每个单个文件，遍历文件，将读到的字符依次转换对应为Huffman码连成01串，每8位转换为一个byte通过BufferedOutputStream写入文件直到该被压缩文件结束，最后不满8位则补满0，处理到下一个文件从一个新的byte开始存储即可。}
+\newpage
+\par{解压：}
+\par{由上述压缩过程可知，Huffman文件的整体结构为，文件开头储存着rootFileNode这一对象，代表整个文件的结构大小与各文件的Huffman树，这一对象后的所有数据都是压缩后的01串转byte数据。}
+\par{则解压时，首先读出rootFileNode，根据文件结构按根后序顺序遍历：遍历到文件夹则创建文件夹(无需考虑是否为空)，进入其子节点；遍历到文件则判断是否为空文件，若是则直接创建该文件后继续遍历，是有内容文件，则将文件中的byte依次转01串，读到0则令nodeNow赋为其左子节点，读到1则令nodeNow赋为其右子节点，若nodeNow为叶节点则则将此节点(此Huffman编码)对应的原字符写入文件，nodeNow回归root，直到正在写入的文件长度与之前记录在fileLength中的原文件长度相同则结束该单文件解压，读取下一个byte，解压下一个文件。如此反复即可完成解压。}
+\subsubsection*{性能}
+\par{在我的笔记本且插电情况下，对于所给testcases这一3.5G文件夹的压缩时间约为4.2min，解压时间约为2.5min，压缩率约为71\%。其他更多不同文件大小等相关数据详见下面“性能测试”模块。}
+\subsection*{其他需求}
+\subsubsection*{用户交互}
+\par{已实现以参数的形式指定输入输出，“zip targetFile.huffman sourceFile”表示将sourceFile压缩为targetFile.huffman，“unzip sourceFile.huffman”表示解压sourceFile.huffman，“show sourceFile.huffman”表示预览sourceFile.huffman中的文件结构，“quit”表示退出程序。(仅用首字母输入命令也可行)}
+\par{在每次操作完毕后都会显示该操作的用时，这是由在操作前后获取当前时间相减实现的。}
+\par{压缩完毕后会显示压缩率，这是由通过遍历原文件(夹)结构获取该文件总大小(长度)，与压缩后文件大小相除得到的，压缩率越低说明压缩结果越小。}
+\subsubsection*{检验压缩包来源\&输入命令错误反馈}
+\par{已实现在尝试解压一个奇怪的，不是由我们的压缩工具创建的文件时，在终端显示“你的输入中含有我无法处理的xxx文件”。}
+\par{另外，也实现了在对应情况下输出错误提示“你的输入中含有无法找到的文件xxx”“你的输入中含有错误的变量数”。并且在以上这些提示后都会显示“正确的输入格式为：xxx，请重新输入”。}
+\par{这些提示是由检测到对应错误情况后抛出自定义异常类WrongInputFormatException(message, type)，在main函数的while循环中获取并根据错误信息message与操作类型type输出相应提示来实现。}
+\subsubsection*{文件覆盖问题}
+\par{在“代码结构概要”模块中已进行了部分说明，Boolean类型的checkCover()函数会检查destFile是否已经存在，并做出相应的响应，返回是否需要进行真正的操作。}
+\subsubsection*{压缩包预览}
+\par{在“代码结构概要”模块中已进行了部分说明，下面简要说明rootFileNode.showFiles()内部的实现。该函数主体是由isLast这一ArrayList<Boolean>来代表每一级文件(夹)是否已经是上一级文件夹中的最后一个，以此来决定此文件名前的前缀应该如何输出，在遍历文件结构时更新isLast数组并输出即可。效果如下图所示：}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.3\linewidth]{1.png}
+\end{figure}
+\subsection*{其他实现}
+\subsubsection*{实时压缩进度}
+\par{我额外实现了在压缩、解压过程中显示当前解压进度百分比，这是由设置一个已读取数据量progressAll与总数据量(文件文件夹总长度)相比简单实现。}
+\section{开发环境工具}
+\par{IDE：VS Code version 1.84}
+\par{编程语言：Java}
+\par{平台：Windows 11}
+\section{性能测试}
+\begin{table}[h!]
+    \begin{center}
+        \begin{tabular}{|c|c|c|c|c|c|}
+            \hline
+            测试用例                & 初始大小 & 压缩后大小 & 压缩率 & 压缩时间 & 解压时间 \\
+            \hline
+            EmptyFile               & 0B       & 438B       & -      & 0.00s    & 0.00s    \\
+            NormalSingleFile(9.htm) & 495KB    & 355KB      & 71\%   & 0.15s    & 0.13s    \\
+            XLargeSingleFile(2.csv) & 421MB    & 268MB      & 63\%   & 30.32s   & 19.04s   \\
+            EmptyFolder             & 0B       & 272B       & -      & 0.00s    & 0.00s    \\
+            NomalFolder(2)          & 4.03MB   & 2.79MB     & 69\%   & 1.28s    & 0.33s    \\
+            SubFolders(2)           & 7.43MB   & 5.58MB     & 75\%   & 0.65s    & 0.47s    \\
+            XlargeSubFolders(3)     & 1.01GB   & 674MB      & 64\%   & 64.81s   & 43.76s   \\
+            Speed(1.csv)            & 613MB    & 399MB      & 65\%   & 38.33s   & 25.32s   \\
+            Ratio(1.csv)            & 421MB    & 269MB      & 64\%   & 26.88s   & 18.69s   \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+\section{其他压缩工具比较}
+\par{统一压缩整个testcases文件夹，数据如下表：}
+\begin{table}[h!]
+    \begin{center}
+        \begin{tabular}{|c|c|c|c|}
+            \hline
+            压缩工具          & 压缩率 & 压缩时间 & 解压时间 \\
+            \hline
+            Huffman压缩工具   & 73.0\% & 4min15s  & 2min30s  \\
+            Win11自带压缩工具 & 27.4\% & 1min15s  & 1min58s  \\
+            360zip            & 25.9\% & 4min     & 16s      \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+\par{原因分析：}
+\par{可以看到我的压缩工具的压缩率更高，压缩后文件更大，且压缩与解压时间都比其他工具长很多。}
+\par{这些主流压缩工具的底层相比于我这一简单压缩可能采取了更为高效的LZ77算法与哈夫曼编码相结合的DEFLATE等算法，因此能够做到生成更小的压缩文件；且在算法上相比于我这一简陋版本更为优化，时间复杂度更低，也可能调用了多线程进行压缩，实现大幅提升程序运行速度，降低时间。}
+\section{开发过程中的问题与解决}
+\par{1.如何将文件与文件夹统一在一起处理。单个文件压缩解压完成后开始思考这个问题，解决办法如上述说明，使用统一的FileNode类，不再说明。}
+\par{2.压缩内含多文件的文件夹时，如何判定或设置两个不同文件间的分界线，使解压时互不干扰。在最初但文件实现时我采用在文件最后补反(即如最后剩余110则补为11011111)来判定处理到哪一位时文件结束，但这种方法不适用于多个文件相连。之后尝试想在文件间插入某个特殊节点来判定，但由于生成的压缩文件中的byte可以取遍所有-128\~127，所以完全没法区分。最后采用预存储每个文件长度的方法来实现。}
+\par{3.如何大幅减少压缩时间与解压时间。除了参考文档中提到的采用缓冲区读写，我在代码修改过程中相比于中期还用到了(1)直接使用int类型+位运算取各位01来替代原先的使用字符串+调用Math.Pow这一更耗时的操作(2)使用HashMap与PriorityQueue代替Arraylist实现相同效果，这样效率有显著提升。}
+\par{4.如何大幅减少压缩率。尝试过使用多次压缩来进一步减小文件大小，但由于第一次压缩后的文件中的内容各字符频率相近，Huffman树就没有显著优势了，放弃这一想法。不过现在离主流压缩工具的压缩程度还有很大差距。}
+\end{document}
