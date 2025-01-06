@@ -1,0 +1,6 @@
+testcases0/testcases/testcase03XLargeSingleFile/2.csv filter=lfs diff=lfs merge=lfs -text
+testcases0/testcases/testcase03XLargeSingleFile/3.csv filter=lfs diff=lfs merge=lfs -text
+testcases0/testcases/testcase07XlargeSubFolders/3/5/8/1.csv filter=lfs diff=lfs merge=lfs -text
+testcases0/testcases/testcase07XlargeSubFolders/3/5/8/2.csv filter=lfs diff=lfs merge=lfs -text
+testcases0/testcases/testcase09Ratio/1.csv filter=lfs diff=lfs merge=lfs -text
+testcases0/testcases/testcase08Speed/1.csv filter=lfs diff=lfs merge=lfs -text
